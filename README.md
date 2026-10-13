@@ -191,7 +191,56 @@ python jarvis/server.py --demo     # إجبار وضع العرض
 إذا وجد `MY_GITHUB_TOKEN` و `GITHUB_REPOSITORY` في البيئة، تتحول تلقائياً إلى **LIVE**
 (تنفيذ حقيقي + قراءة فعلية من Supabase).
 
-### ب) نشرها على Cloudflare (للدخول من الجوال في أي مكان)
+### ب) ربط Cloudflare Pages بالمستودع نفسه (بدون أي أوامر)
+
+من لوحة Cloudflare: **Workers & Pages → Create → Pages → Connect to Git → هذا المستودع**،
+وبعدها املأ الحقول بهذه القيم بالضبط:
+
+| الحقل في الشاشة | القيمة |
+| --- | --- |
+| **Project name** | `abu-ali` (أو أي اسم) |
+| **Production branch** | `main` |
+| **Framework preset** | `None` |
+| **Build command** | `mkdir -p dist && cp jarvis/index.html dist/index.html && cp jarvis/_routes.json dist/_routes.json` |
+| **Build output directory** | `dist` |
+| **Root directory (advanced)** | اتركه **فارغ** (المستودع نفسه هو الجذر، لأن مجلد `functions/` يجب أن يبقى في الجذر) |
+| **Environment variables (advanced)** | أضف المتغيّرات في الجدول أدناه |
+
+> ⚠️ **مهم:** لا تترك Build output directory على `/` — بهذا الشكل Cloudflare ستنشر
+> كل المستودع (بضمنه `main.py` و`db/schema.sql`) كملفات ثابتة. القيمة `dist` تنشر
+> اللوحة فقط.
+
+#### متغيّرات البيئة (Settings → Environment variables → Production + Preview)
+
+| المتغيّر | إلزامي؟ | من أين |
+| --- | --- | --- |
+| `MY_GITHUB_TOKEN` | ✅ | PAT بصلاحيات `repo` + `workflow` |
+| `GITHUB_REPOSITORY` | ✅ | `Hussein911911/Abu-Ali` |
+| `SUPABASE_URL` | مستحسن | لقراءة المهام والذاكرة الحقيقية |
+| `SUPABASE_SERVICE_ROLE_KEY` | مستحسن | نفس المصدر |
+| `JARVIS_ACCESS_KEY` | اختياري | مفتاح سري تقفله به: `?key=...` |
+| `ABU_WORKFLOW_FILE` | اختياري | `abu_ali_agent.yml` |
+| `ABU_DEFAULT_BRANCH` | اختياري | `main` |
+
+بلا متغيّرات → اللوحة تشتغل لكن في **وضع العرض** (بيانات تجريبية) وتقول لك بالضبط شو ناقص.
+
+#### شلون تشتغل الواجهة على Pages؟
+
+```
+الزائر ──► Pages (index.html)            ← ملف ثابت من dist/
+                │  fetch /api/state
+                ▼
+        functions/api/[[path]].js         ← Pages Function (KB ملف واحد)
+                ├── GitHub API   (المشاكل + إطلاق التشغيلات + تثبيت الـ Workflow)
+                └── Supabase     (tasks_log · system_memory · deployments)
+```
+
+- كل الأسرار تبقى داخل `env` في Cloudflare — المتصفح يشوف JSON فقط.
+- `jarvis/_routes.json` يوجّه `/api/*` إلى الفنكشن ويترك باقي المسارات ملفات ثابتة.
+- بعد أول Deploy اضغط في اللوحة: تاب **WIRING** → **ثبّت الـ CI** ليكتب
+  `.github/workflows/abu_ali_agent.yml` في المستودع (يقرأ المصدر من `deploy/` ويستعمل توكنك).
+
+#### بديل: Workers (نفس الكود، نشر بالأوامر)
 
 ```bash
 cd jarvis
@@ -199,7 +248,7 @@ npx wrangler login
 npx wrangler secret put MY_GITHUB_TOKEN            # repo + workflow
 npx wrangler secret put SUPABASE_URL
 npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
-npx wrangler secret put JARVIS_ACCESS_KEY          # اختياري: قفل الواجهة بمفتاح
+npx wrangler secret put JARVIS_ACCESS_KEY          # اختياري
 npx wrangler deploy
 ```
 
@@ -374,6 +423,7 @@ python tests/test_agent_offline.py   # تكامل كامل بمحاكاة GitHub
 python scripts/export_schema.py --check        # هل db/schema.sql محدّث؟
 python scripts/install_workflow.py --offline   # هل نسختا الـ Workflow متطابقتان؟
 node tests/test_worker.mjs                     # اختبارات واجهة JARVIS (9 فحوصات)
+node tests/test_pages_function.mjs             # اختبارات Pages Function (10 فحوصات)
 python jarvis/server.py                        # شغّل اللوحة على http://localhost:8080
 ```
 
@@ -393,12 +443,15 @@ python jarvis/server.py                        # شغّل اللوحة على ht
 ├── scripts/export_schema.py         # مولّد db/schema.sql
 ├── scripts/install_workflow.py      # مثبّت ملف الـ Workflow (بلا تبعيات)
 ├── tests/test_agent_offline.py      # اختبار تكامل بمحاكاة كاملة
-├── tests/test_worker.mjs            # اختبار Worker الواجهة (Node، بلا شبكة)
+├── tests/test_worker.mjs            # اختبار Worker الواجهة (9 فحوصات)
+├── tests/test_pages_function.mjs    # اختبار Pages Function (10 فحوصات)
 ├── jarvis/                          # واجهة J.A.R.V.I.S.
 │   ├── index.html                   #   الواجهة كاملة (ملف واحد، بلا build)
 │   ├── server.py                    #   سيرفر محلي/معاينة (مكتبة قياسية فقط)
 │   ├── worker.js                    #   نسخة Cloudflare Worker (للإنتاج)
-│   └── wrangler.toml                #   إعداد النشر
+│   ├── _routes.json                 #   توجيه /api/* للفنكشن على Pages
+│   └── wrangler.toml                #   إعداد نشر Worker
+├── functions/api/[[path]].js        # Cloudflare Pages Functions (خلفية اللوحة)
 ├── deploy/abu_ali_agent.yml         # نسخة المصدر من ملف الـ Workflow
 ├── .github/workflows/abu_ali_agent.yml   # المنظّم الفعّال (يُثبّت بالسكربت)
 ├── .env.example                     # قائمة الأسرار للتشغيل المحلي
@@ -416,6 +469,9 @@ python jarvis/server.py                        # شغّل اللوحة على ht
 | «all LLM routes failed» | مفتاح/حد استهلاك | راجع `GROQ_API_KEY` و`GEMINI_API_KEY` |
 | يعمل لكن لا PR | لا تغييرات مطلوبة أو كل الملفات مرفوضة | راجع `Skipped by safety policy` في السجل |
 | لا يردّ على تعليقي | صلاحيتك أقل من write، أو التعليق من الوكيل نفسه | استخدم حسابك المالك أو `/abu stop` عكسياً |
+| الصفحة تفتح لكن ببيانات تجريبية | متغيّرات البيئة غير مضافة في Pages | Settings → Environment variables → أضف `MY_GITHUB_TOKEN` + `GITHUB_REPOSITORY` ثم Redeploy |
+| الصفحة تعرض صفحة Cloudflare «404» | Build output directory ليس `dist` | صحّحه من Settings → Builds & deployments |
+| `/api/state` يرجع HTML بدل JSON | الـ Pages Function لم تُبنَ | تأكد أن `functions/api/[[path]].js` مدفوع على الفرع `main` وأن Root directory فارغ |
 | `refusing to allow ... without 'workflows' permission` عند الدفع | التوكن/التطبيق بلا صلاحية `workflows` | شغّل `python scripts/install_workflow.py` بتوكن عنده الصلاحية |
 | الـ Workflow لا يشتغل على Issue | الملف غير موجود على **الفرع الافتراضي** | ثبّته على `main` (الأحداث المجدولة والإصدارات تُقرأ من الفرع الافتراضي فقط) |
 | `AUTO_DEPLOY` مطلوب لكن لا نشر | أسرار Cloudflare ناقصة | أضف `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN` |
