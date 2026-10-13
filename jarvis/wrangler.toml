@@ -1,0 +1,55 @@
+# =============================================================================
+#  Abu Ali — J.A.R.V.I.S. dashboard on Cloudflare Workers
+#
+#  Deploy:
+#     cd jarvis
+#     npx wrangler login
+#     npx wrangler secret put MY_GITHUB_TOKEN          # repo + workflow scopes
+#     npx wrangler secret put SUPABASE_URL
+#     npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+#     npx wrangler secret put JARVIS_ACCESS_KEY        # optional gate for /api/*
+#     npx wrangler secret put GROQ_API_KEY             # optional (status display)
+#     npx wrangler secret put GEMINI_API_KEY           # optional (status display)
+#     npx wrangler secret put CLOUDFLARE_API_TOKEN     # optional (status display)
+#     npx wrangler deploy
+#
+#  The same run can be triggered from Abu Ali itself:
+#     /abu deploy worker abu-ali-jarvis
+# =============================================================================
+
+name = "abu-ali-jarvis"
+main = "worker.js"
+compatibility_date = "2024-11-06"
+workers_dev = true
+
+# The HUD and the workflow source are bundled as text modules so the Worker
+# always serves exactly what is committed in the repository.
+[[rules]]
+type = "Text"
+globs = ["**/*.html", "**/*.yml"]
+fallthrough = true
+
+[vars]
+GITHUB_REPOSITORY = "Hussein911911/Abu-Ali"
+ABU_WORKFLOW_FILE = "abu_ali_agent.yml"
+ABU_DEFAULT_BRANCH = "main"
+TASK_LABELS = "task,devops"
+STATE_LIMIT = "14"
+
+# -----------------------------------------------------------------------------
+#  Optional: move /api/state caching into a KV namespace for larger fleets.
+#  (The default in-worker Cache API already keeps the GitHub/Supabase usage low.)
+# -----------------------------------------------------------------------------
+# [[kv_namespaces]]
+# binding = "JARVIS_CACHE"
+# id = "<your-kv-namespace-id>"
+
+[observability]
+enabled = true
+
+# -----------------------------------------------------------------------------
+#  Optional: bind the dashboard to a custom domain
+# -----------------------------------------------------------------------------
+# [[routes]]
+# pattern = "jarvis.example.com/*"
+# zone_name = "example.com"

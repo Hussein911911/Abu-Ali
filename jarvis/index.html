@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#03060f">
+<title>ABU ALI · J.A.R.V.I.S. CONTROL</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='38' fill='none' stroke='%2322d3ee' stroke-width='6'/><circle cx='50' cy='50' r='14' fill='%2322d3ee'/></svg>">
+<style>
+/* ==========================================================================
+   ABU ALI — J.A.R.V.I.S. control interface
+   Single file · no build step · no CDN · Arabic-first (RTL) with EN toggle
+   ========================================================================== */
+:root{
+  --bg:#03060f; --bg-2:#050b18;
+  --cyan:#22d3ee; --cyan-dim:#0e7f95; --cyan-soft:rgba(34,211,238,.12);
+  --amber:#ffb020; --red:#ff4d6d; --green:#2ee6a8; --violet:#8b7bff;
+  --text:#d6ecf7; --text-dim:#7fa5ba; --line:rgba(34,211,238,.18);
+  --panel:linear-gradient(180deg,rgba(9,22,38,.82),rgba(4,9,18,.92));
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  --sans:"Segoe UI","Noto Kufi Arabic","Noto Naskh Arabic",Tahoma,system-ui,sans-serif;
+  --radius:14px;
+  --shadow:0 0 0 1px rgba(34,211,238,.08),0 18px 50px -20px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.03);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--text); font-family:var(--sans);
+  overflow-x:hidden; -webkit-tap-highlight-color:transparent;
+  background-image:
+    radial-gradient(1100px 620px at 50% -10%,rgba(34,211,238,.13),transparent 60%),
+    radial-gradient(760px 500px at 100% 100%,rgba(139,123,255,.10),transparent 60%),
+    radial-gradient(700px 520px at 0% 90%,rgba(255,176,32,.07),transparent 60%);
+  background-attachment:fixed;
+}
+/* animated backdrop */
+#fx{position:fixed;inset:0;width:100%;height:100%;z-index:0;opacity:.55;pointer-events:none}
+.grid-overlay{
+  position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.35;
+  background-image:linear-gradient(rgba(34,211,238,.06) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(34,211,238,.06) 1px,transparent 1px);
+  background-size:44px 44px;
+  mask-image:radial-gradient(circle at 50% 40%,#000 30%,transparent 78%);
+  -webkit-mask-image:radial-gradient(circle at 50% 40%,#000 30%,transparent 78%);
+}
+.scanlines{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:.16;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.05) 0 1px,transparent 1px 3px)}
+.vignette{position:fixed;inset:0;z-index:2;pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 50%,transparent 55%,rgba(0,0,0,.75))}
+
+/* ---------- language switch ---------- */
+html[lang="ar"] .en{display:none!important}
+html[lang="en"] .ar{display:none!important}
+html[lang="en"] .app{direction:ltr}
+html[lang="ar"] .app{direction:rtl}
+
+.app{position:relative;z-index:3;display:flex;flex-direction:column;min-height:100vh;padding:14px;gap:14px;max-width:1560px;margin:0 auto}
+@media(min-width:900px){.app{padding:20px;gap:18px}}
+
+/* ---------- top bar ---------- */
+.hud-top{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:12px 16px;border-radius:var(--radius);border:1px solid var(--line);
+  background:var(--panel);box-shadow:var(--shadow);backdrop-filter:blur(10px);
+}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand-mark{
+  width:42px;height:42px;flex:0 0 42px;border-radius:50%;
+  background:radial-gradient(circle at 50% 50%,rgba(34,211,238,.9) 0 18%,rgba(34,211,238,.25) 22%,transparent 60%);
+  border:1px solid rgba(34,211,238,.5);position:relative;
+  box-shadow:0 0 22px rgba(34,211,238,.45),inset 0 0 18px rgba(34,211,238,.35);
+}
+.brand-mark::after{content:"";position:absolute;inset:-6px;border-radius:50%;
+  border:1px dashed rgba(34,211,238,.45);animation:spin 14s linear infinite}
+.brand-title{font-weight:800;letter-spacing:.16em;font-size:15px;line-height:1.1}
+.brand-sub{font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:.22em}
+.spacer{flex:1 1 auto}
+.pill{
+  display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;
+  border:1px solid var(--line);background:rgba(6,16,28,.7);font-family:var(--mono);font-size:11px;
+  letter-spacing:.1em;white-space:nowrap
+}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px currentColor;color:var(--green)}
+.pill.demo .dot{background:var(--amber);color:var(--amber)}
+.pill.offline .dot{background:var(--red);color:var(--red)}
+.pill.busy .dot{background:var(--cyan);color:var(--cyan);animation:blink 1s steps(2,end) infinite}
+.icon-btn{
+  appearance:none;cursor:pointer;font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+  color:var(--text);background:rgba(6,16,28,.7);border:1px solid var(--line);border-radius:10px;
+  padding:8px 11px;transition:.18s
+}
+.icon-btn:hover{border-color:var(--cyan);color:#fff;box-shadow:0 0 18px rgba(34,211,238,.25)}
+.clock{font-family:var(--mono);font-size:12px;color:var(--cyan);letter-spacing:.12em;text-shadow:0 0 12px rgba(34,211,238,.5)}
+
+/* ---------- grid ---------- */
+.hud-grid{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:1080px){.hud-grid{grid-template-columns:300px minmax(0,1fr) 340px}}
+
+.panel{
+  border-radius:var(--radius);border:1px solid var(--line);background:var(--panel);
+  box-shadow:var(--shadow);backdrop-filter:blur(10px);position:relative;overflow:hidden
+}
+.panel::before,.panel::after{
+  content:"";position:absolute;width:16px;height:16px;border:1px solid var(--cyan);opacity:.55;pointer-events:none
+}
+.panel::before{top:8px;inset-inline-start:8px;border-width:1px 0 0 1px;border-radius:6px 0 0 0}
+.panel::after{bottom:8px;inset-inline-end:8px;border-width:0 1px 1px 0;border-radius:0 0 6px 0}
+.panel-head{
+  display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(34,211,238,.12)
+}
+.panel-head h2{
+  margin:0;font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--cyan)
+}
+.panel-head .tag{margin-inline-start:auto;font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:.14em}
+.panel-body{padding:14px}
+
+/* ---------- vitals ---------- */
+.vital{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px dashed rgba(34,211,238,.10)}
+.vital:last-child{border-bottom:0}
+.vital .name{font-size:12px;letter-spacing:.08em;flex:1;min-width:0}
+.vital .name small{display:block;font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:.14em}
+.vital .meter{width:64px;height:6px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden;flex:0 0 64px}
+.vital .meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--green));transition:width .6s ease}
+.vital .state{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--green);flex:0 0 62px;text-align:end}
+.vital.warn .state{color:var(--amber)} .vital.off .state{color:var(--red)}
+.vital.off .meter i{background:linear-gradient(90deg,#7a2233,var(--red))}
+.vital.warn .meter i{background:linear-gradient(90deg,#7a5a12,var(--amber))}
+
+/* ---------- reactor ---------- */
+.core-col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.reactor-wrap{position:relative;display:flex;justify-content:center;align-items:center;padding:26px 10px 14px}
+.reactor{position:relative;width:min(56vw,340px);aspect-ratio:1;max-width:340px}
+.reactor svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.ring{fill:none;stroke:rgba(34,211,238,.55);stroke-width:1.4;transform-origin:150px 150px}
+.r1{stroke-dasharray:6 12;animation:spin 26s linear infinite}
+.r2{stroke-dasharray:2 8;stroke:rgba(34,211,238,.35);animation:spin 40s linear infinite reverse}
+.r3{stroke:rgba(255,176,32,.35);stroke-dasharray:1 26;stroke-width:2.4;animation:spin 18s linear infinite}
+.r4{stroke:rgba(139,123,255,.35);stroke-dasharray:30 12 4 12;animation:spin 60s linear infinite reverse}
+.arc{fill:none;stroke:url(#arcGrad);stroke-width:3;stroke-linecap:round;
+  stroke-dasharray:0 999;transition:stroke-dasharray .8s ease;transform-origin:150px 150px;
+  filter:drop-shadow(0 0 6px rgba(34,211,238,.8))}
+.core-glow{
+  position:absolute;inset:22%;border-radius:50%;
+  background:radial-gradient(circle,rgba(34,211,238,.35),rgba(34,211,238,.08) 55%,transparent 72%);
+  animation:breathe 4.2s ease-in-out infinite;filter:blur(2px)
+}
+.reactor.active .core-glow{animation-duration:1.4s;background:radial-gradient(circle,rgba(34,211,238,.55),rgba(34,211,238,.14) 55%,transparent 74%)}
+.reactor.error .core-glow{background:radial-gradient(circle,rgba(255,77,109,.42),rgba(255,77,109,.10) 55%,transparent 74%)}
+.reactor.active .ring{stroke:rgba(34,211,238,.9)}
+.reactor.active .r1{animation-duration:9s}.reactor.active .r2{animation-duration:14s}.reactor.active .r3{animation-duration:6s}
+.core{
+  position:absolute;inset:26%;border-radius:50%;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;gap:6px;
+  background:radial-gradient(circle,rgba(3,10,20,.92),rgba(3,10,20,.65));
+  border:1px solid rgba(34,211,238,.35);box-shadow:inset 0 0 40px rgba(34,211,238,.18)
+}
+.core-state{font-size:clamp(15px,2.4vw,20px);font-weight:800;letter-spacing:.06em;text-shadow:0 0 18px rgba(34,211,238,.6)}
+.core-sub{font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:.18em;text-transform:uppercase}
+.core-line{font-family:var(--mono);font-size:10px;color:var(--text-dim);padding:0 18%;line-height:1.5}
+.reactor.error .core{border-color:rgba(255,77,109,.5);box-shadow:inset 0 0 40px rgba(255,77,109,.22)}
+.reactor.error .core-state{color:#ffd7de;text-shadow:0 0 18px rgba(255,77,109,.6)}
+
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media(max-width:560px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.metric{
+  border:1px solid var(--line);border-radius:12px;padding:12px 10px;background:rgba(5,13,24,.6);position:relative;overflow:hidden
+}
+.metric b{display:block;font-family:var(--mono);font-size:clamp(18px,3vw,26px);line-height:1;color:#fff;text-shadow:0 0 16px rgba(34,211,238,.35)}
+.metric span{display:block;margin-top:6px;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim)}
+.metric::after{content:"";position:absolute;inset-inline:0;bottom:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:.6}
+
+/* ---------- feed ---------- */
+.feed-list{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow:auto}
+.feed-item{border:1px solid rgba(34,211,238,.12);border-radius:10px;padding:9px 11px;background:rgba(6,14,26,.6)}
+.feed-item .row1{display:flex;align-items:center;gap:8px}
+.feed-item .title{font-size:12.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.feed-item .meta{font-family:var(--mono);font-size:9.5px;color:var(--text-dim);margin-top:5px;letter-spacing:.06em;display:flex;gap:10px;flex-wrap:wrap}
+.chip{font-family:var(--mono);font-size:9px;letter-spacing:.1em;padding:3px 7px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+.chip.done{color:var(--green)} .chip.run{color:var(--cyan)} .chip.fail{color:var(--red)} .chip.wait{color:var(--amber)}
+.chip.info{color:var(--violet)}
+
+/* ---------- tabs ---------- */
+.tabs-wrap{border-radius:var(--radius);border:1px solid var(--line);background:var(--panel);box-shadow:var(--shadow);overflow:hidden}
+.tabs{display:flex;gap:4px;padding:8px;border-bottom:1px solid rgba(34,211,238,.12);overflow-x:auto}
+.tab{
+  appearance:none;cursor:pointer;border:0;background:transparent;color:var(--text-dim);font-family:var(--mono);
+  font-size:11px;letter-spacing:.14em;padding:10px 14px;border-radius:9px;white-space:nowrap;transition:.18s
+}
+.tab:hover{color:var(--text);background:rgba(34,211,238,.06)}
+.tab.active{color:#031018;background:linear-gradient(180deg,var(--cyan),#0fa8c4);box-shadow:0 0 24px rgba(34,211,238,.35);font-weight:700}
+.tab-body{padding:12px 14px;min-height:180px;max-height:340px;overflow:auto}
+table.data{width:100%;border-collapse:collapse;font-size:12px}
+table.data th{
+  text-align:start;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--cyan);
+  text-transform:uppercase;padding:8px 10px;border-bottom:1px solid rgba(34,211,238,.2);position:sticky;top:0;background:#050c18
+}
+table.data td{padding:9px 10px;border-bottom:1px dashed rgba(34,211,238,.10);vertical-align:top}
+table.data tr:hover td{background:rgba(34,211,238,.05)}
+table.data td.mono{font-family:var(--mono);font-size:11px;color:var(--text-dim);white-space:nowrap}
+table.data a{color:var(--cyan);text-decoration:none;border-bottom:1px dotted rgba(34,211,238,.4)}
+.empty{color:var(--text-dim);font-size:12px;font-family:var(--mono);padding:22px 6px;text-align:center}
+
+/* ---------- console ---------- */
+.console{
+  position:sticky;bottom:0;z-index:5;margin-top:auto;
+  border-radius:var(--radius);border:1px solid var(--line);background:linear-gradient(180deg,rgba(8,18,32,.94),rgba(3,8,16,.98));
+  box-shadow:0 -10px 40px -18px rgba(0,0,0,.95),var(--shadow);backdrop-filter:blur(14px);padding:12px 14px 14px
+}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
+.chip-btn{
+  cursor:pointer;border:1px solid rgba(34,211,238,.25);background:rgba(34,211,238,.06);color:var(--cyan);
+  font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:7px 11px;border-radius:999px;transition:.18s
+}
+.chip-btn:hover{background:rgba(34,211,238,.16);box-shadow:0 0 16px rgba(34,211,238,.2)}
+.console-row{display:flex;gap:9px;align-items:flex-end}
+.prompt-sign{font-family:var(--mono);color:var(--cyan);font-size:13px;padding-bottom:12px;letter-spacing:.05em}
+textarea#cmd{
+  flex:1;resize:none;min-height:46px;max-height:130px;padding:12px 14px;border-radius:11px;
+  background:rgba(2,7,14,.9);border:1px solid var(--line);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5
+}
+textarea#cmd:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.12)}
+.btn{
+  cursor:pointer;border:1px solid rgba(34,211,238,.45);border-radius:11px;padding:12px 18px;font-weight:700;
+  font-family:var(--mono);letter-spacing:.12em;font-size:12px;color:#04121c;
+  background:linear-gradient(180deg,var(--cyan),#0ea8c6);box-shadow:0 0 24px rgba(34,211,238,.3);transition:.18s
+}
+.btn:hover{filter:brightness(1.12);box-shadow:0 0 34px rgba(34,211,238,.45)}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.5)}
+.btn.ghost{background:rgba(6,16,28,.8);color:var(--cyan);box-shadow:none}
+.btn.mic.listening{background:linear-gradient(180deg,var(--red),#c81e3e);color:#fff;border-color:var(--red);animation:pulse 1.1s ease-in-out infinite}
+.console-hint{font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-top:9px;letter-spacing:.06em}
+.console-hint b{color:var(--cyan);font-weight:600}
+
+/* ---------- toasts & boot ---------- */
+.toasts{position:fixed;inset-inline-start:16px;bottom:16px;z-index:40;display:flex;flex-direction:column;gap:8px;max-width:min(92vw,420px)}
+.toast{
+  border:1px solid var(--line);border-radius:11px;padding:11px 13px;background:rgba(5,14,26,.96);
+  box-shadow:var(--shadow);font-size:12.5px;animation:slideIn .28s ease
+}
+.toast.err{border-color:rgba(255,77,109,.5)} .toast.ok{border-color:rgba(46,230,168,.45)}
+.toast .t{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--cyan);margin-bottom:4px;text-transform:uppercase}
+
+#boot{position:fixed;inset:0;z-index:100;background:radial-gradient(circle at 50% 45%,#04101d,#01050c 70%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity .7s ease}
+#boot.gone{opacity:0;pointer-events:none}
+.boot-ring{width:96px;height:96px;border-radius:50%;border:2px solid rgba(34,211,238,.25);border-top-color:var(--cyan);animation:spin 1s linear infinite;position:relative}
+.boot-ring::after{content:"";position:absolute;inset:14px;border-radius:50%;border:2px solid rgba(34,211,238,.2);border-bottom-color:var(--cyan);animation:spin 1.6s linear infinite reverse}
+.boot-title{font-family:var(--mono);letter-spacing:.4em;font-size:13px;color:var(--cyan)}
+.boot-log{font-family:var(--mono);font-size:11px;color:var(--text-dim);min-height:76px;width:min(90vw,420px);line-height:1.7}
+.boot-log .ok{color:var(--green)}
+.boot-bar{width:min(90vw,420px);height:3px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden}
+.boot-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--green));transition:width .3s ease}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes breathe{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.06);opacity:1}}
+@keyframes blink{50%{opacity:.25}}
+@keyframes pulse{50%{box-shadow:0 0 0 8px rgba(255,77,109,.15)}}
+@keyframes slideIn{from{transform:translateY(10px);opacity:0}}
+@keyframes tick{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;animation-iteration-count:1!important}}
+</style>
+</head>
+<body>
+<canvas id="fx"></canvas>
+<div class="grid-overlay"></div>
+<div class="scanlines"></div>
+<div class="vignette"></div>
+<div id="boot">
+  <div class="boot-ring"></div>
+  <div class="boot-title">ABU ALI · J.A.R.V.I.S.</div>
+  <div class="boot-log" id="bootLog"></div>
+  <div class="boot-bar"><i id="bootBar"></i></div>
+</div>
+
+<div class="app">
+
+  <!-- ================= TOP BAR ================= -->
+  <header class="hud-top">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div>
+        <div class="brand-title">ABU ALI</div>
+        <div class="brand-sub">J.A.R.V.I.S. · CONTROL INTERFACE</div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="pill" id="connPill"><span class="dot"></span><span id="connText">…</span></div>
+    <div class="pill" id="modePill"><span class="dot"></span><span id="modeText">…</span></div>
+    <div class="pill clock" id="clock">--:--:--</div>
+    <button class="icon-btn" id="soundBtn" title="Voice output">🔊 <span id="soundText">ON</span></button>
+    <button class="icon-btn" id="langBtn">EN</button>
+  </header>
+
+  <!-- ================= GRID ================= -->
+  <main class="hud-grid">
+
+    <!-- vitals -->
+    <section class="panel">
+      <div class="panel-head">
+        <h2><span class="ar">الحالة الحيّة</span><span class="en">VITALS</span></h2>
+        <span class="tag" id="vitalsTag">--</span>
+      </div>
+      <div class="panel-body" id="vitals"></div>
+    </section>
+
+    <!-- reactor + metrics -->
+    <section class="core-col">
+      <div class="panel">
+        <div class="panel-head">
+          <h2><span class="ar">نواة أبو علي</span><span class="en">ABU ALI CORE</span></h2>
+          <span class="tag" id="coreTag">IDLE</span>
+        </div>
+        <div class="reactor-wrap">
+          <div class="reactor" id="reactor">
+            <svg viewBox="0 0 300 300" aria-hidden="true">
+              <defs>
+                <linearGradient id="arcGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#22d3ee"/>
+                  <stop offset="55%" stop-color="#2ee6a8"/>
+                  <stop offset="100%" stop-color="#ffb020"/>
+                </linearGradient>
+              </defs>
+              <circle class="ring r4" cx="150" cy="150" r="142"/>
+              <circle class="ring r1" cx="150" cy="150" r="126"/>
+              <circle class="ring r2" cx="150" cy="150" r="108"/>
+              <circle class="ring r3" cx="150" cy="150" r="90"/>
+              <circle class="arc" id="progressArc" cx="150" cy="150" r="118" transform="rotate(-90 150 150)"/>
+            </svg>
+            <div class="core-glow"></div>
+            <div class="core">
+              <div class="core-state" id="coreState">جاهز</div>
+              <div class="core-sub" id="coreSub">standby</div>
+              <div class="core-line" id="coreLine">بانتظار أمرك…</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel-body" style="padding-top:0">
+          <div class="metrics">
+            <div class="metric"><b id="mTasks">0</b><span><span class="ar">مهام</span><span class="en">TASKS</span></span></div>
+            <div class="metric"><b id="mSuccess">–</b><span><span class="ar">نجاح</span><span class="en">SUCCESS</span></span></div>
+            <div class="metric"><b id="mPRs">0</b><span><span class="ar">طلبات دمج</span><span class="en">PULL REQS</span></span></div>
+            <div class="metric"><b id="mDeploys">0</b><span><span class="ar">نشر Edge</span><span class="en">DEPLOYS</span></span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- feed -->
+    <section class="panel">
+      <div class="panel-head">
+        <h2><span class="ar">البث المباشر</span><span class="en">LIVE FEED</span></h2>
+        <span class="tag" id="feedTag">--</span>
+      </div>
+      <div class="panel-body">
+        <div class="feed-list" id="feed"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= DATA TABS ================= -->
+  <section class="tabs-wrap">
+    <div class="tabs" id="tabs">
+      <button class="tab active" data-tab="tasks"><span class="ar">المهام</span><span class="en">TASKS</span></button>
+      <button class="tab" data-tab="memory"><span class="ar">الذاكرة</span><span class="en">MEMORY</span></button>
+      <button class="tab" data-tab="deploy"><span class="ar">النشر</span><span class="en">DEPLOYMENTS</span></button>
+      <button class="tab" data-tab="issues"><span class="ar">المشاكل</span><span class="en">ISSUES</span></button>
+      <button class="tab" data-tab="setup"><span class="ar">الربط</span><span class="en">WIRING</span></button>
+    </div>
+    <div class="tab-body" id="tabBody"></div>
+  </section>
+
+  <!-- ================= CONSOLE ================= -->
+  <footer class="console">
+    <div class="chips" id="chips"></div>
+    <div class="console-row">
+      <span class="prompt-sign">abu@ali:~$</span>
+      <textarea id="cmd" rows="1" placeholder="/abu اكتب أمرك هنا… مثال: أضف endpoint للفحص الصحي في health/check.py"></textarea>
+      <button class="btn ghost mic" id="micBtn" title="Voice command">🎙</button>
+      <button class="btn" id="runBtn"><span class="ar">تنفيذ</span><span class="en">EXECUTE</span></button>
+    </div>
+    <div class="console-hint" id="hint"></div>
+  </footer>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<script>
+/* ==========================================================================
+   ABU ALI — J.A.R.V.I.S. control logic
+   · talks to /api/* when a backend is present (Cloudflare Worker or local server)
+   · falls back to a full offline demo so the interface is always inspectable
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  /* ------------------------------- state ------------------------------- */
+  var STATE = {
+    lang: (localStorage.getItem('abu.lang') || 'ar'),
+    sound: localStorage.getItem('abu.sound') !== 'off',
+    mode: 'demo',            // demo | live
+    repo: '',
+    busy: false,
+    tab: 'tasks',
+    timer: null
+  };
+
+  var DEMO = null;           // built on first load
+  var DATA = { vitals: [], tasks: [], memory: [], deploys: [], issues: [], runs: [], stats: {} };
+
+  /* -------------------------------- i18n ------------------------------- */
+  var T = {
+    ar: {
+      ready: 'جاهز', standby: 'وضع الاستعداد', waiting: 'بانتظار أمرك…',
+      thinking: 'أفكّر', simulating: 'محاكاة', executing: 'أنفّذ', reporting: 'أُبلّغ', done: 'تم', error: 'خلل',
+      live: 'مباشر', demo: 'وضع العرض', offline: 'غير متصل', busy: 'يعمل الآن',
+      tasks: 'المهام', memory: 'الذاكرة', deploys: 'النشر', issues: 'المشاكل', setup: 'الربط',
+      noTasks: 'لا مهام بعد — أرسل أمراً من الأسفل.', noMemory: 'الذاكرة فارغة.', noDeploys: 'لا عمليات نشر.',
+      noIssues: 'لا مشاكل مفتوحة تحمل وسم task.',
+      chipScan: 'افحص المستودع', chipStatus: 'الحالة', chipMemory: 'الذاكرة', chipFeed: 'آخر المهام',
+      chipDeploy: 'انشر الواجهة', chipCI: 'ثبّت الـ CI',
+      sent: 'تم إرسال الأمر إلى GitHub Actions', planned: 'التخطيط عبر',
+      codewritten: 'توليد الكود وإنشاء الفرع', prOpened: 'فتح طلب الدمج', memSaved: 'حفظ المعرفة في Supabase',
+      finished: 'أُنجزت المهمة', failed: 'فشلت المهمة', hintDemo: 'وضع العرض: الأوامر تُحاكى محلياً. اربط الواجهة بـ Cloudflare Worker لتنفيذ حقيقي.',
+      hintLive: 'متصل بالخلفية — الأوامر تُرسل فعلاً إلى GitHub Actions.',
+      speakDone: 'تم إنجاز المهمة يا رئيس.', speakFail: 'صار خلل في المهمة يا رئيس.',
+      listening: 'أسمعك… تحدّث الآن', noVoice: 'المتصفح لا يدعم الإدخال الصوتي',
+      dispatchFailed: 'تعذّر إرسال الأمر', installCI: 'تثبيت ملف الـ Workflow', installing: 'أُثبّت الـ CI…',
+      wired: 'مرتبط', missing: 'ناقص', opt: 'اختياري'
+    },
+    en: {
+      ready: 'READY', standby: 'standby', waiting: 'awaiting your command…',
+      thinking: 'THINKING', simulating: 'SIMULATING', executing: 'EXECUTING', reporting: 'REPORTING', done: 'DONE', error: 'FAULT',
+      live: 'LIVE', demo: 'DEMO MODE', offline: 'OFFLINE', busy: 'WORKING',
+      tasks: 'TASKS', memory: 'MEMORY', deploys: 'DEPLOYMENTS', issues: 'ISSUES', setup: 'WIRING',
+      noTasks: 'No tasks yet — send a command below.', noMemory: 'Memory bank is empty.', noDeploys: 'Nothing deployed yet.',
+      noIssues: 'No open issues labelled task.',
+      chipScan: 'Scan repo', chipStatus: 'Status', chipMemory: 'Memory', chipFeed: 'Latest tasks',
+      chipDeploy: 'Deploy dashboard', chipCI: 'Install CI',
+      sent: 'Command dispatched to GitHub Actions', planned: 'Planning via',
+      codewritten: 'Code generated and branch pushed', prOpened: 'Pull request opened', memSaved: 'Knowledge stored in Supabase',
+      finished: 'Task completed', failed: 'Task failed', hintDemo: 'Demo mode: commands are simulated locally. Point the UI at the Cloudflare Worker for real execution.',
+      hintLive: 'Backend connected — commands really dispatch GitHub Actions.',
+      speakDone: 'Task completed, boss.', speakFail: 'The task hit a fault, boss.',
+      listening: 'Listening…', noVoice: 'This browser has no speech recognition',
+      dispatchFailed: 'Could not dispatch the command', installCI: 'Install workflow file', installing: 'Installing CI…',
+      wired: 'wired', missing: 'missing', opt: 'optional'
+    }
+  };
+  function t(key) { return (T[STATE.lang] && T[STATE.lang][key]) || key; }
+
+  /* ------------------------------- helpers ----------------------------- */
+  function $(sel) { return document.querySelector(sel); }
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function timeAgo(iso) {
+    if (!iso) return '—';
+    var then = new Date(iso).getTime();
+    if (isNaN(then)) return '—';
+    var secs = Math.max(0, Math.round((Date.now() - then) / 1000));
+    var units = STATE.lang === 'ar'
+      ? [['ث', 60], ['د', 60], ['س', 24], ['ي', 365]]
+      : [['s', 60], ['m', 60], ['h', 24], ['d', 365]];
+    var value = secs, unit = units[0][0];
+    for (var i = 0; i < units.length; i++) {
+      unit = units[i][0];
+      if (value < units[i][1]) break;
+      value = Math.floor(value / units[i][1]);
+    }
+    return STATE.lang === 'ar' ? value + ' ' + unit : value + unit;
+  }
+  function chipClass(status) {
+    var s = String(status || '').toLowerCase();
+    if (s.indexOf('fail') >= 0 || s.indexOf('error') >= 0) return 'fail';
+    if (s.indexOf('run') >= 0 || s.indexOf('queue') >= 0 || s.indexOf('progress') >= 0) return 'run';
+    if (s.indexOf('complete') >= 0 || s.indexOf('done') >= 0 || s.indexOf('deployed') >= 0 || s.indexOf('success') >= 0) return 'done';
+    return 'wait';
+  }
+  function toast(title, message, kind) {
+    var box = $('#toasts');
+    var el = document.createElement('div');
+    el.className = 'toast ' + (kind || '');
+    el.innerHTML = '<div class="t">' + esc(title) + '</div><div>' + esc(message) + '</div>';
+    box.appendChild(el);
+    setTimeout(function () {
+      el.style.opacity = '0'; el.style.transform = 'translateY(8px)';
+      setTimeout(function () { el.remove(); }, 350);
+    }, 5200);
+  }
+  function pushFeed(kind, title, meta) {
+    DATA.runs.unshift({ kind: kind, title: title, meta: meta || '', at: new Date().toISOString() });
+    DATA.runs = DATA.runs.slice(0, 40);
+    renderFeed();
+  }
+
+  /* ---------------------------- background fx -------------------------- */
+  function initFx() {
+    var canvas = $('#fx');
+    var ctx = canvas.getContext('2d');
+    var dots = [];
+    function resize() {
+      canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+      var count = Math.min(90, Math.round(window.innerWidth / 18));
+      dots = [];
+      for (var i = 0; i < count; i++) {
+        dots.push({
+          x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25,
+          r: Math.random() * 1.6 + 0.4
+        });
+      }
+    }
+    function frame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      var slow = STATE.busy ? 2.4 : 1;
+      for (var i = 0; i < dots.length; i++) {
+        var d = dots[i];
+        d.x += d.vx * slow; d.y += d.vy * slow;
+        if (d.x < 0) d.x = canvas.width; if (d.x > canvas.width) d.x = 0;
+        if (d.y < 0) d.y = canvas.height; if (d.y > canvas.height) d.y = 0;
+        ctx.beginPath();
+        ctx.fillStyle = STATE.busy ? 'rgba(34,211,238,.75)' : 'rgba(34,211,238,.45)';
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2); ctx.fill();
+        for (var j = i + 1; j < dots.length; j++) {
+          var o = dots[j], dx = d.x - o.x, dy = d.y - o.y, dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 118) {
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(34,211,238,' + (0.10 * (1 - dist / 118)).toFixed(3) + ')';
+            ctx.lineWidth = 0.7; ctx.moveTo(d.x, d.y); ctx.lineTo(o.x, o.y); ctx.stroke();
+          }
+        }
+      }
+      requestAnimationFrame(frame);
+    }
+    window.addEventListener('resize', resize);
+    resize(); frame();
+  }
+
+  /* ------------------------------ boot --------------------------------- */
+  var BOOT = [
+    ['initialising arc reactor', 'تهيئة النواة'],
+    ['linking groq cortex', 'ربط مخ Groq'],
+    ['linking gemini cortex', 'ربط مخ Gemini'],
+    ['supabase memory banks', 'بنوك الذاكرة Supabase'],
+    ['github arm online', 'ذراع GitHub جاهزة'],
+    ['cloudflare edge link', 'رابط حوسبة الحافة'],
+    ['welcome back, boss', 'أهلاً بعودتك يا رئيس']
+  ];
+  function boot() {
+    var log = $('#bootLog'), bar = $('#bootBar'), i = 0;
+    var step = setInterval(function () {
+      if (i >= BOOT.length) {
+        clearInterval(step);
+        bar.style.width = '100%';
+        setTimeout(function () { $('#boot').classList.add('gone'); }, 380);
+        return;
+      }
+      var line = document.createElement('div');
+      line.innerHTML = '<span class="ok">[ OK ]</span> ' + esc(STATE.lang === 'ar' ? BOOT[i][1] : BOOT[i][0]);
+      log.appendChild(line);
+      bar.style.width = Math.round(((i + 1) / BOOT.length) * 100) + '%';
+      i++;
+    }, 210);
+  }
+
+  /* ------------------------------- api --------------------------------- */
+  function api(path, options) {
+    return fetch(path, Object.assign({ headers: { 'Content-Type': 'application/json' } }, options || {}))
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      });
+  }
+
+  function loadState() {
+    return api('/api/state').then(function (payload) {
+      // The backend decides: it reports 'demo' when no credentials are wired,
+      // and the HUD keeps simulating locally in that case instead of firing
+      // real workflow dispatches that would 404.
+      STATE.mode = payload.mode === 'demo' ? 'demo' : 'live';
+      STATE.repo = payload.repo || '';
+      DATA.vitals = payload.vitals || [];
+      DATA.tasks = payload.tasks || [];
+      DATA.memory = payload.memory || [];
+      DATA.deploys = payload.deploys || [];
+      DATA.issues = payload.issues || [];
+      DATA.runs = payload.runs || [];
+      DATA.stats = payload.stats || {};
+      return true;
+    }).catch(function () {
+      STATE.mode = 'demo';
+      DATA = demoData();
+      return false;
+    });
+  }
+
+  /* ---------------------------- demo data ------------------------------ */
+  function demoData() {
+    var now = Date.now(), mins = function (m) { return new Date(now - m * 60000).toISOString(); };
+    return {
+      vitals: [
+        { name: 'GitHub', sub: 'MY_GITHUB_TOKEN', state: 'ok', value: 100, note: 'repo + workflow' },
+        { name: 'Groq', sub: 'llama-3.3-70b', state: 'ok', value: 92, note: 'fast cortex' },
+        { name: 'Gemini', sub: 'gemini-2.0-flash', state: 'ok', value: 88, note: 'deep cortex' },
+        { name: 'Supabase', sub: 'system_memory', state: 'ok', value: 100, note: 'RLS off' },
+        { name: 'Cloudflare', sub: 'workers + pages', state: 'ok', value: 76, note: 'edge link' },
+        { name: 'MCP', sub: 'context7 · github · supabase', state: 'warn', value: 55, note: 'context7 on' }
+      ],
+      stats: { tasks: 48, success: 92, prs: 17, deploys: 5 },
+      tasks: [
+        { id: 48, issue: 42, title: 'إضافة endpoint للفحص الصحي', status: 'completed', provider: 'gemini', model: 'gemini-2.0-flash', pr_url: 'https://github.com/owner/repo/pull/42', created_at: mins(6) },
+        { id: 47, issue: 41, title: 'تحديث واجهة لوحة التحكم', status: 'running', provider: 'groq', model: 'llama-3.3-70b', pr_url: '', created_at: mins(18) },
+        { id: 46, issue: 40, title: 'نشر Worker على Cloudflare', status: 'completed', provider: 'groq', model: 'llama-3.3-70b', pr_url: 'https://github.com/owner/repo/pull/40', created_at: mins(75) },
+        { id: 45, issue: 39, title: 'إصلاح خطأ في تسجيل الدخول', status: 'failed', provider: 'gemini', model: 'gemini-1.5-pro', pr_url: '', created_at: mins(160) },
+        { id: 44, issue: 38, title: 'توليد اختبارات الوحدة للدفع', status: 'completed', provider: 'gemini', model: 'gemini-2.0-flash', pr_url: 'https://github.com/owner/repo/pull/38', created_at: mins(320) }
+      ],
+      memory: [
+        { kind: 'architecture', key: 'health-endpoint', content: 'كل فحوصات الصحة في health/check.py وتُسجَّل في app.py', importance: 7, updated_at: mins(6) },
+        { kind: 'preference', key: 'language-arabic', content: 'المالك يفضّل كل التقارير بالعربية مع روابط مباشرة', importance: 9, updated_at: mins(60) },
+        { kind: 'decision', key: 'edge-workers', content: 'الواجهة تُنشر كـ Cloudflare Worker باسم abu-ali-jarvis', importance: 8, updated_at: mins(180) },
+        { kind: 'lesson', key: 'ci-permissions', content: 'GitHub يرفض كتابة .github/workflows من توكن بلا صلاحية workflow', importance: 6, updated_at: mins(240) }
+      ],
+      deploys: [
+        { target: 'abu-ali-jarvis', type: 'worker', status: 'deployed', url: 'https://abu-ali-jarvis.workers.dev', created_at: mins(30) },
+        { target: 'abu-ali-site', type: 'pages', status: 'deployed', url: 'https://abu-ali-site.pages.dev', created_at: mins(200) }
+      ],
+      issues: [
+        { number: 42, title: 'أضف endpoint للفحص الصحي', labels: ['task'], url: 'https://github.com/owner/repo/issues/42', updated_at: mins(9) },
+        { number: 41, title: 'حدّث واجهة لوحة التحكم', labels: ['task', 'devops'], url: 'https://github.com/owner/repo/issues/41', updated_at: mins(22) },
+        { number: 37, title: 'وثّق أوامر الوكيل', labels: ['task'], url: 'https://github.com/owner/repo/issues/37', updated_at: mins(400) }
+      ],
+      runs: [
+        { kind: 'ok', title: 'مهمة #42 أُنجزت — PR مفتوح', meta: '6 دقائق · gemini-2.0-flash', at: mins(6) },
+        { kind: 'run', title: 'مهمة #41 قيد التنفيذ…', meta: '18 دقيقة · llama-3.3-70b', at: mins(18) },
+        { kind: 'ok', title: 'نشر Worker: abu-ali-jarvis', meta: '30 دقيقة · Cloudflare', at: mins(30) }
+      ]
+    };
+  }
+
+  /* ------------------------------ render ------------------------------- */
+  function renderVitals() {
+    var html = '';
+    DATA.vitals.forEach(function (v) {
+      var cls = v.state === 'off' ? 'off' : (v.state === 'warn' ? 'warn' : '');
+      var label = v.state === 'off' ? t('missing') : (v.state === 'warn' ? t('opt') : t('wired'));
+      html += '<div class="vital ' + cls + '">' +
+        '<div class="name">' + esc(v.name) + '<small>' + esc(v.sub || '') + '</small></div>' +
+        '<div class="meter"><i style="width:' + Math.max(4, Math.min(100, v.value || 0)) + '%"></i></div>' +
+        '<div class="state">' + esc(label) + '</div></div>';
+    });
+    $('#vitals').innerHTML = html || '<div class="empty">—</div>';
+    var ok = DATA.vitals.filter(function (v) { return v.state === 'ok'; }).length;
+    $('#vitalsTag').textContent = ok + '/' + (DATA.vitals.length || 0);
+  }
+
+  function renderMetrics() {
+    var s = DATA.stats || {};
+    $('#mTasks').textContent = s.tasks == null ? DATA.tasks.length : s.tasks;
+    $('#mSuccess').textContent = s.success == null ? '–' : s.success + '%';
+    $('#mPRs').textContent = s.prs == null ? DATA.tasks.filter(function (x) { return x.pr_url; }).length : s.prs;
+    $('#mDeploys').textContent = s.deploys == null ? DATA.deploys.length : s.deploys;
+  }
+
+  function renderFeed() {
+    var html = '';
+    DATA.runs.slice(0, 14).forEach(function (r) {
+      html += '<div class="feed-item"><div class="row1">' +
+        '<span class="chip ' + (r.kind === 'fail' ? 'fail' : (r.kind === 'run' ? 'run' : (r.kind === 'info' ? 'info' : 'done'))) + '">' +
+        esc(r.kind || 'info').toUpperCase() + '</span>' +
+        '<span class="title">' + esc(r.title) + '</span></div>' +
+        (r.meta ? '<div class="meta"><span>' + esc(r.meta) + '</span><span>' + timeAgo(r.at) + '</span></div>' : '') +
+        '</div>';
+    });
+    $('#feed').innerHTML = html || '<div class="empty">' + esc(t('waiting')) + '</div>';
+    $('#feedTag').textContent = DATA.runs.length + ' · ' + (STATE.mode === 'live' ? t('live') : t('demo'));
+  }
+
+  function renderCore(state, sub, line) {
+    var reactor = $('#reactor');
+    reactor.classList.toggle('active', state === 'active');
+    reactor.classList.toggle('error', state === 'error');
+    $('#coreState').textContent = sub || t('ready');
+    $('#coreSub').textContent = line || t('standby');
+    $('#coreTag').textContent = state === 'active' ? 'ACTIVE' : (state === 'error' ? 'FAULT' : 'IDLE');
+  }
+  function setProgress(fraction) {
+    var circumference = 2 * Math.PI * 118;
+    var arc = $('#progressArc');
+    arc.setAttribute('stroke-dasharray', (circumference * Math.max(0, Math.min(1, fraction))).toFixed(1) + ' 999');
+  }
+
+  function renderTabs() {
+    var body = $('#tabBody');
+    var html = '';
+    if (STATE.tab === 'tasks') {
+      html = '<table class="data"><thead><tr><th>#</th><th>' + (STATE.lang === 'ar' ? 'المهمة' : 'Task') + '</th>' +
+        '<th>STATUS</th><th>BRAIN</th><th>PR</th><th>' + (STATE.lang === 'ar' ? 'قبل' : 'AGE') + '</th></tr></thead><tbody>';
+      DATA.tasks.forEach(function (task) {
+        html += '<tr><td class="mono">' + esc(task.issue ? '#' + task.issue : '—') + '</td>' +
+          '<td>' + esc(task.title || task.summary || '—') + '</td>' +
+          '<td><span class="chip ' + chipClass(task.status) + '">' + esc(String(task.status || '').toUpperCase()) + '</span></td>' +
+          '<td class="mono">' + esc(task.model || task.provider || '—') + '</td>' +
+          '<td class="mono">' + (task.pr_url ? '<a href="' + esc(task.pr_url) + '" target="_blank" rel="noopener">PR ↗</a>' : '—') + '</td>' +
+          '<td class="mono">' + timeAgo(task.created_at) + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      if (!DATA.tasks.length) html = '<div class="empty">' + esc(t('noTasks')) + '</div>';
+    } else if (STATE.tab === 'memory') {
+      if (!DATA.memory.length) html = '<div class="empty">' + esc(t('noMemory')) + '</div>';
+      DATA.memory.forEach(function (m) {
+        var pct = Math.min(100, (Number(m.importance) || 5) * 10);
+        html += '<div class="feed-item" style="margin-bottom:9px">' +
+          '<div class="row1"><span class="chip info">' + esc(String(m.kind || 'fact').toUpperCase()) + '</span>' +
+          '<span class="title">' + esc(m.key || '') + '</span>' +
+          '<span class="chip ' + (pct >= 70 ? 'done' : 'wait') + '">' + pct + '%</span></div>' +
+          '<div style="font-size:12.5px;line-height:1.6;margin-top:7px">' + esc(m.content) + '</div>' +
+          '<div class="meta"><span>' + timeAgo(m.updated_at) + '</span></div></div>';
+      });
+    } else if (STATE.tab === 'deploy') {
+      if (!DATA.deploys.length) html = '<div class="empty">' + esc(t('noDeploys')) + '</div>';
+      else {
+        html = '<table class="data"><thead><tr><th>TARGET</th><th>TYPE</th><th>STATUS</th><th>URL</th><th>' +
+          (STATE.lang === 'ar' ? 'قبل' : 'AGE') + '</th></tr></thead><tbody>';
+        DATA.deploys.forEach(function (d) {
+          html += '<tr><td>' + esc(d.target || '—') + '</td><td class="mono">' + esc(d.type || '—') + '</td>' +
+            '<td><span class="chip ' + chipClass(d.status) + '">' + esc(String(d.status || '').toUpperCase()) + '</span></td>' +
+            '<td class="mono">' + (d.url ? '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.url.replace(/^https?:\/\//, '')) + ' ↗</a>' : '—') + '</td>' +
+            '<td class="mono">' + timeAgo(d.created_at) + '</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+    } else if (STATE.tab === 'issues') {
+      if (!DATA.issues.length) html = '<div class="empty">' + esc(t('noIssues')) + '</div>';
+      DATA.issues.forEach(function (issue) {
+        html += '<div class="feed-item" style="margin-bottom:9px"><div class="row1">' +
+          '<span class="chip run">#' + esc(issue.number) + '</span>' +
+          '<span class="title">' + esc(issue.title) + '</span>' +
+          '<button class="chip-btn" data-run-issue="' + esc(issue.number) + '">▶ ' + (STATE.lang === 'ar' ? 'تشغيل' : 'RUN') + '</button>' +
+          '</div><div class="meta">' +
+          (issue.labels || []).map(function (l) { return '<span>#' + esc(l) + '</span>'; }).join('') +
+          '<span>' + timeAgo(issue.updated_at) + '</span>' +
+          (issue.url ? '<a href="' + esc(issue.url) + '" target="_blank" rel="noopener">' + esc(issue.url.replace('https://github.com/', '')) + ' ↗</a>' : '') +
+          '</div></div>';
+      });
+    } else if (STATE.tab === 'setup') {
+      html = '<div style="display:grid;gap:12px">' +
+        '<div class="feed-item"><div class="row1"><span class="chip info">SECRETS</span><span class="title">' +
+        (STATE.lang === 'ar' ? 'الأسرار المطلوبة في المستودع' : 'Repository secrets required') + '</span></div>' +
+        '<div class="meta" style="margin-top:8px">' +
+        ['MY_GITHUB_TOKEN', 'GROQ_API_KEY', 'GEMINI_API_KEY', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN']
+          .map(function (s) { return '<span>' + esc(s) + '</span>'; }).join('') + '</div></div>' +
+        '<div class="feed-item"><div class="row1"><span class="chip ' + (STATE.mode === 'live' ? 'done' : 'wait') + '">' +
+        (STATE.mode === 'live' ? 'LIVE' : 'DEMO') + '</span><span class="title">' +
+        (STATE.mode === 'live'
+          ? (STATE.lang === 'ar' ? 'الواجهة متصلة بالخلفية' : 'Dashboard is connected to the backend')
+          : (STATE.lang === 'ar' ? 'شغّل الواجهة عبر Cloudflare Worker لتنفيذ حقيقي' : 'Deploy through the Cloudflare Worker for real execution')) +
+        '</span></div></div>' +
+        '<div class="feed-item"><div class="row1"><span class="chip info">CI</span><span class="title">' +
+        (STATE.lang === 'ar' ? 'ملف الـ Workflow داخل .github/workflows' : 'Workflow file in .github/workflows') + '</span>' +
+        '<button class="chip-btn" id="installCILink">' + esc(t('installCI')) + '</button></div>' +
+        '<div class="meta" style="margin-top:8px"><span>deploy/abu_ali_agent.yml → .github/workflows/abu_ali_agent.yml</span></div></div>' +
+        '</div>';
+    }
+    body.innerHTML = html;
+    var installBtn = $('#installCILink');
+    if (installBtn) installBtn.addEventListener('click', installWorkflow);
+    Array.prototype.forEach.call(body.querySelectorAll('[data-run-issue]'), function (btn) {
+      btn.addEventListener('click', function () {
+        dispatchCommand('/abu راجع المشكلة #' + btn.getAttribute('data-run-issue') + ' ونفّذ المطلوب', btn.getAttribute('data-run-issue'));
+      });
+    });
+  }
+
+  function renderHeader() {
+    var pill = $('#connPill'), mode = $('#modePill');
+    mode.className = 'pill ' + (STATE.mode === 'live' ? '' : 'demo');
+    $('#modeText').textContent = STATE.mode === 'live' ? t('live') : t('demo');
+    pill.className = 'pill ' + (STATE.busy ? 'busy' : '');
+    $('#connText').textContent = STATE.busy ? t('busy') : (STATE.mode === 'live' ? 'ONLINE' : t('demo'));
+    $('#hint').innerHTML = STATE.mode === 'live'
+      ? esc(t('hintLive')) + (STATE.repo ? ' · <b>' + esc(STATE.repo) + '</b>' : '')
+      : esc(t('hintDemo'));
+  }
+
+  function renderChips() {
+    var chips = [
+      { cmd: '/abu افحص صحة المستودع وأخبرني بالوضع', label: t('chipScan') },
+      { cmd: '/abu status', label: t('chipStatus') },
+      { act: 'memory', label: t('chipMemory') },
+      { act: 'feed', label: t('chipFeed') },
+      { cmd: '/abu deploy pages', label: t('chipDeploy') }
+    ];
+    $('#chips').innerHTML = chips.map(function (c) {
+      return '<button class="chip-btn" ' + (c.cmd ? 'data-cmd="' + esc(c.cmd) + '"' : 'data-act="' + esc(c.act) + '"') + '>' + esc(c.label) + '</button>';
+    }).join('');
+    Array.prototype.forEach.call($('#chips').querySelectorAll('button'), function (btn) {
+      btn.addEventListener('click', function () {
+        if (btn.hasAttribute('data-cmd')) {
+          $('#cmd').value = btn.getAttribute('data-cmd');
+          dispatchCommand(btn.getAttribute('data-cmd'));
+        } else if (btn.getAttribute('data-act') === 'memory') {
+          setTab('memory');
+        } else if (btn.getAttribute('data-act') === 'feed') {
+          setTab('tasks');
+        }
+      });
+    });
+  }
+
+  function renderAll() {
+    renderVitals(); renderMetrics(); renderFeed(); renderTabs(); renderHeader();
+  }
+
+  function setTab(name) {
+    STATE.tab = name;
+    Array.prototype.forEach.call($('#tabs').querySelectorAll('.tab'), function (tab) {
+      tab.classList.toggle('active', tab.getAttribute('data-tab') === name);
+    });
+    renderTabs();
+  }
+
+  /* --------------------------- command flow ---------------------------- */
+  function dispatchCommand(text, issueNumber) {
+    text = (text || '').trim();
+    if (!text || STATE.busy) return;
+    $('#cmd').value = '';
+    STATE.busy = true;
+    renderHeader();
+    pushFeed('run', text, (STATE.lang === 'ar' ? 'قيد التنفيذ' : 'dispatching'));
+    renderCore('active', t('thinking'), text.slice(0, 60));
+    setProgress(0.06);
+
+    if (STATE.mode !== 'live') {
+      simulateRun(text);
+      return;
+    }
+    api('/api/command', { method: 'POST', body: JSON.stringify({ instruction: text, issue: issueNumber || null }) })
+      .then(function (res) {
+        STATE.busy = false;
+        pushFeed(res.ok ? 'ok' : 'fail', res.message || t('sent'), res.run_url || '');
+        renderCore(res.ok ? 'idle' : 'error', res.ok ? t('done') : t('error'), res.message || '');
+        setProgress(res.ok ? 1 : 0);
+        toast(res.ok ? 'ABU ALI' : t('error'), res.message || t('sent'), res.ok ? 'ok' : 'err');
+        speak(res.ok ? t('speakDone') : t('speakFail'));
+        renderHeader();
+        setTimeout(refresh, 4000);
+      })
+      .catch(function (err) {
+        STATE.busy = false;
+        pushFeed('fail', t('dispatchFailed') + ': ' + err.message, '');
+        renderCore('error', t('error'), err.message);
+        toast(t('error'), t('dispatchFailed'), 'err');
+        renderHeader();
+      });
+  }
+
+  function simulateRun(text) {
+    var stages = [
+      { p: 0.18, sub: t('planned') + ' Groq · llama-3.3-70b', msg: 'Groq: llama-3.3-70b — ' + (STATE.lang === 'ar' ? 'تخطيط' : 'planning') },
+      { p: 0.42, sub: 'Gemini · gemini-2.0-flash', msg: t('codewritten') },
+      { p: 0.66, sub: (STATE.lang === 'ar' ? 'كوميت + فرع' : 'branch + commit'), msg: 'abu-ali/issue-42 · commit c0ffee1' },
+      { p: 0.86, sub: 'Pull Request', msg: t('prOpened') + ' #42' },
+      { p: 1.0, sub: 'Supabase', msg: t('memSaved') }
+    ];
+    var i = 0;
+    var step = setInterval(function () {
+      if (i >= stages.length) {
+        clearInterval(step);
+        STATE.busy = false;
+        DATA.tasks.unshift({
+          id: (DATA.tasks[0] ? DATA.tasks[0].id + 1 : 1), issue: 42, title: text.slice(0, 70),
+          status: 'completed', provider: 'gemini', model: 'gemini-2.0-flash',
+          pr_url: 'https://github.com/owner/repo/pull/42', created_at: new Date().toISOString()
+        });
+        DATA.stats.tasks = (DATA.stats.tasks || 0) + 1;
+        DATA.stats.prs = (DATA.stats.prs || 0) + 1;
+        DATA.memory.unshift({
+          kind: 'decision', key: 'task-' + Date.now().toString(36),
+          content: (STATE.lang === 'ar' ? 'نُفِّذ الطلب: ' : 'Executed request: ') + text.slice(0, 90),
+          importance: 6, updated_at: new Date().toISOString()
+        });
+        pushFeed('ok', t('finished') + ' — ' + (STATE.lang === 'ar' ? 'طلب دمج مفتوح' : 'PR opened'), 'demo · ' + t('done'));
+        renderCore('idle', t('done'), t('finished'));
+        toast('ABU ALI', t('finished'), 'ok');
+        speak(t('speakDone'));
+        renderAll();
+        renderHeader();
+        return;
+      }
+      var stage = stages[i++];
+      setProgress(stage.p);
+      renderCore('active', t('executing'), stage.sub);
+      pushFeed('run', stage.msg, 'step ' + i + '/' + stages.length);
+    }, 1150);
+  }
+
+  function installWorkflow() {
+    if (STATE.mode !== 'live') {
+      toast('CI', STATE.lang === 'ar'
+        ? 'وضع العرض: التثبيت يتم عبر scripts/install_workflow.py أو من تطبيق GitHub'
+        : 'Demo mode: install via scripts/install_workflow.py or the GitHub app', 'err');
+      return;
+    }
+    toast('CI', t('installing'), '');
+    api('/api/install-workflow', { method: 'POST', body: '{}' }).then(function (res) {
+      toast('CI', res.message || 'OK', res.ok ? 'ok' : 'err');
+      pushFeed(res.ok ? 'ok' : 'fail', 'CI: ' + (res.message || ''), '');
+    }).catch(function (err) {
+      toast('CI', err.message, 'err');
+    });
+  }
+
+  /* ------------------------------ voice -------------------------------- */
+  function speak(text) {
+    if (!STATE.sound || !text || !('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      var utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = STATE.lang === 'ar' ? 'ar-SA' : 'en-US';
+      utterance.rate = 1.02; utterance.pitch = 0.95;
+      var voices = window.speechSynthesis.getVoices() || [];
+      var match = voices.filter(function (v) { return (v.lang || '').toLowerCase().indexOf(STATE.lang === 'ar' ? 'ar' : 'en') === 0; })[0];
+      if (match) utterance.voice = match;
+      window.speechSynthesis.speak(utterance);
+    } catch (e) { /* voice is a bonus, never a blocker */ }
+  }
+
+  function listen() {
+    var Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var button = $('#micBtn');
+    if (!Recognition) { toast('VOICE', t('noVoice'), 'err'); return; }
+    var recognition = new Recognition();
+    recognition.lang = STATE.lang === 'ar' ? 'ar-IQ' : 'en-US';
+    recognition.interimResults = false; recognition.maxAlternatives = 1;
+    button.classList.add('listening');
+    renderCore('active', t('listening'), '🎙');
+    recognition.onresult = function (event) {
+      var text = event.results[0][0].transcript;
+      $('#cmd').value = text;
+      dispatchCommand(text.indexOf('/abu') === 0 ? text : '/abu ' + text);
+    };
+    recognition.onerror = function (event) { toast('VOICE', event.error || 'error', 'err'); };
+    recognition.onend = function () {
+      button.classList.remove('listening');
+      if (!STATE.busy) renderCore('idle', t('ready'), t('waiting'));
+    };
+    recognition.start();
+  }
+
+  /* ------------------------------ misc -------------------------------- */
+  function tickClock() {
+    var now = new Date();
+    var time = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Baghdad', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(now);
+    $('#clock').textContent = time + ' BGW';
+  }
+
+  function applyLanguage() {
+    document.documentElement.lang = STATE.lang;
+    document.documentElement.dir = STATE.lang === 'ar' ? 'rtl' : 'ltr';
+    $('#langBtn').textContent = STATE.lang === 'ar' ? 'EN' : 'ع';
+    $('#soundText').textContent = STATE.sound ? 'ON' : 'OFF';
+    $('#cmd').placeholder = STATE.lang === 'ar'
+      ? '/abu اكتب أمرك هنا… مثال: أضف endpoint للفحص الصحي في health/check.py'
+      : '/abu type your command… e.g. add a health-check endpoint in health/check.py';
+    renderChips(); renderAll();
+  }
+
+  function refresh() {
+    if (STATE.mode !== 'live') return;
+    loadState().then(function () { renderAll(); }).catch(function () { /* keep the last known state */ });
+  }
+
+  function wire() {
+    $('#runBtn').addEventListener('click', function () { dispatchCommand($('#cmd').value); });
+    $('#cmd').addEventListener('keydown', function (event) {
+      if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); dispatchCommand($('#cmd').value); }
+    });
+    $('#micBtn').addEventListener('click', listen);
+    $('#langBtn').addEventListener('click', function () {
+      STATE.lang = STATE.lang === 'ar' ? 'en' : 'ar';
+      localStorage.setItem('abu.lang', STATE.lang);
+      applyLanguage();
+      speak(STATE.lang === 'ar' ? 'اللغة العربية جاهزة يا رئيس' : 'English interface ready');
+    });
+    $('#soundBtn').addEventListener('click', function () {
+      STATE.sound = !STATE.sound;
+      localStorage.setItem('abu.sound', STATE.sound ? 'on' : 'off');
+      $('#soundText').textContent = STATE.sound ? 'ON' : 'OFF';
+      if (STATE.sound) speak(STATE.lang === 'ar' ? 'الصوت مفعّل' : 'Sound enabled');
+    });
+    Array.prototype.forEach.call($('#tabs').querySelectorAll('.tab'), function (tab) {
+      tab.addEventListener('click', function () { setTab(tab.getAttribute('data-tab')); });
+    });
+    setInterval(tickClock, 1000); tickClock();
+    setInterval(refresh, 10000);
+  }
+
+  /* ------------------------------- start ------------------------------- */
+  document.addEventListener('DOMContentLoaded', function () {
+    applyLanguage();
+    initFx();
+    boot();
+    loadState().then(function () {
+      renderAll();
+      if (STATE.mode === 'live') {
+        pushFeed('info', STATE.lang === 'ar' ? 'تم الاتصال بخلفية أبو علي' : 'Connected to the Abu Ali backend', STATE.repo);
+      }
+      renderHeader();
+      setTimeout(function () {
+        speak(STATE.lang === 'ar' ? 'أبو علي جاهز للخدمة يا رئيس.' : 'Abu Ali is online, boss.');
+      }, 2600);
+    });
+    wire();
+  });
+})();
+</script>
+</body>
+</html>
