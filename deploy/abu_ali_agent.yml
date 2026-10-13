@@ -132,6 +132,9 @@ jobs:
       - name: Verify the workflow copies are in sync
         run: python scripts/install_workflow.py --offline
 
+      - name: Test the J.A.R.V.I.S. dashboard Worker (offline)
+        run: node tests/test_worker.mjs
+
       - name: Run Abu Ali
         id: agent
         continue-on-error: true

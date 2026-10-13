@@ -146,6 +146,85 @@ Actions → **Abu Ali — Autonomous DevOps Agent** → **Run workflow** →
 > 🛡️ **حماية:** أوامر `/abu` من تعليق تحتاج صلاحية **write** أو أعلى. أي شخص بصلاحية
 > قراءة فقط سيصله رد مهذّب بأن الأمر محجوب.
 
+---
+
+## 🎛️ واجهة J.A.R.V.I.S. (لوحة التحكم)
+
+لوحة تحكم بمظهر JARVIS تتحكم بأبو علي من أي جهاز — الجوال، التابلت، أو الكمبيوتر:
+نواة نابضة تعكس حالة الوكيل، مؤشرات حيّة للاتصالات، بث مباشر للمهام، ذاكرة قابلة للتصفح،
+وأوامر صوتية بالعربية 🎙️.
+
+```
+      ┌──────────────────────── ABU ALI ─ J.A.R.V.I.S. ────────────────────────┐
+      │  VITALS        │        ╭───────────────╮        │      LIVE FEED      │
+      │  GitHub  ▓▓▓▓▓ │       ╱  ◜reactor◝     ╲       │  ✔ #42 PR مفتوح    │
+      │  Groq    ▓▓▓▓  │      │   أنفّذ الآن      │      │  ⟳ #41 قيد التنفيذ │
+      │  Gemini  ▓▓▓   │       ╲   ▓▓▓▓▓▓▓     ╱       │  ✔ نشر Worker      │
+      │  Supabase ▓▓▓▓ │        ╰───────────────╯        │                     │
+      │                │   مهام │ نجاح │ PRs │ نشر       │                     │
+      ├─────────────────────────────────────────────────────────────────────────┤
+      │  TASKS │ MEMORY │ DEPLOYMENTS │ ISSUES │ WIRING                        │
+      │  abu@ali:~$  /abu افحص المستودع           🎙   [ تنفيذ ]                │
+      └─────────────────────────────────────────────────────────────────────────┘
+```
+
+### المزايا
+
+| الميزة | الوصف |
+| --- | --- |
+| 🔵 النواة (Reactor) | تدور أسرع وتضيء عند التنفيذ، وتحمرّ عند الخلل — حالة الوكيل بنظرة واحدة |
+| 🎙️ الأوامر الصوتية | اضغط المايك وتكلّم بالعربية، والواجهة ترد عليك صوتياً (Web Speech API) |
+| ⚡ تنفيذ حقيقي | كل أمر يُطلق تشغيلاً فعلياً في GitHub Actions (نفس مسار `/abu`) |
+| 📊 لوحات البيانات | المهام · الذاكرة طويلة المدى · عمليات النشر · المشاكل المفتوحة · حالة الربط |
+| 🧩 زر «ثبّت الـ CI» | يكتب `.github/workflows/abu_ali_agent.yml` بتوكنك مباشرة — يحل مشكلة صلاحية `workflows` |
+| 🌗 عربي/إنجليزي | تبديل فوري مع RTL/LTR وأصوات مناسبة لكل لغة |
+| 🔒 آمنة | كل الأسرار على السيرفر فقط؛ لا يصل المتصفح أي توكن (`x-jarvis-key` اختياري) |
+| 📶 وضع العرض | بلا أي مفاتيح تعرض الواجهة بيانات تجريبية كاملة لمعاينة التصميم |
+
+### أ) تشغيلها محلياً (بلا تثبيت أي مكتبة)
+
+```bash
+python jarvis/server.py            # ثم افتح http://localhost:8080
+python jarvis/server.py --demo     # إجبار وضع العرض
+```
+
+إذا وجد `MY_GITHUB_TOKEN` و `GITHUB_REPOSITORY` في البيئة، تتحول تلقائياً إلى **LIVE**
+(تنفيذ حقيقي + قراءة فعلية من Supabase).
+
+### ب) نشرها على Cloudflare (للدخول من الجوال في أي مكان)
+
+```bash
+cd jarvis
+npx wrangler login
+npx wrangler secret put MY_GITHUB_TOKEN            # repo + workflow
+npx wrangler secret put SUPABASE_URL
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+npx wrangler secret put JARVIS_ACCESS_KEY          # اختياري: قفل الواجهة بمفتاح
+npx wrangler deploy
+```
+
+ثم افتح `https://abu-ali-jarvis.<حسابك>.workers.dev/?key=<JARVIS_ACCESS_KEY>` مرة واحدة،
+والواجهة تحفظ المفتاح وتستخدمه تلقائياً بعدها.
+
+> 💡 أو اطلب من أبو علي نفسه: `/abu deploy worker abu-ali-jarvis`
+
+### 🔧 زر تثبيت الـ CI (المشكلة التي واجهتنا)
+
+GitHub يرفض كتابة `.github/workflows/**` من أي توكن/تطبيق بلا صلاحية `workflow`.
+لهذا الواجهة تحمل زر **«ثبّت الـ CI»** في تبويب `WIRING`:
+
+- يقرأ المحتوى من `deploy/abu_ali_agent.yml`
+- يكتبه في `.github/workflows/abu_ali_agent.yml` عبر API بتوكنك
+- يرجع لك رابط الملف في المستودع
+
+نفس العملية بسطر واحد محلياً:
+
+```bash
+python scripts/install_workflow.py --branch main
+```
+
+---
+
 ### الطريقة 3 — GitHub CLI / أي واجهة
 
 ```bash
@@ -294,6 +373,8 @@ python main.py --dry-run --instruction "أضف اختبارات"
 python tests/test_agent_offline.py   # تكامل كامل بمحاكاة GitHub/Supabase/LLM
 python scripts/export_schema.py --check        # هل db/schema.sql محدّث؟
 python scripts/install_workflow.py --offline   # هل نسختا الـ Workflow متطابقتان؟
+node tests/test_worker.mjs                     # اختبارات واجهة JARVIS (9 فحوصات)
+python jarvis/server.py                        # شغّل اللوحة على http://localhost:8080
 ```
 
 للاختبار محلياً مع مفاتيح حقيقية: انسخ `.env.example` إلى `.env`.
@@ -312,6 +393,12 @@ python scripts/install_workflow.py --offline   # هل نسختا الـ Workflow
 ├── scripts/export_schema.py         # مولّد db/schema.sql
 ├── scripts/install_workflow.py      # مثبّت ملف الـ Workflow (بلا تبعيات)
 ├── tests/test_agent_offline.py      # اختبار تكامل بمحاكاة كاملة
+├── tests/test_worker.mjs            # اختبار Worker الواجهة (Node، بلا شبكة)
+├── jarvis/                          # واجهة J.A.R.V.I.S.
+│   ├── index.html                   #   الواجهة كاملة (ملف واحد، بلا build)
+│   ├── server.py                    #   سيرفر محلي/معاينة (مكتبة قياسية فقط)
+│   ├── worker.js                    #   نسخة Cloudflare Worker (للإنتاج)
+│   └── wrangler.toml                #   إعداد النشر
 ├── deploy/abu_ali_agent.yml         # نسخة المصدر من ملف الـ Workflow
 ├── .github/workflows/abu_ali_agent.yml   # المنظّم الفعّال (يُثبّت بالسكربت)
 ├── .env.example                     # قائمة الأسرار للتشغيل المحلي
@@ -350,6 +437,7 @@ Issue (+ label `task`/`devops`)  →  plan (Groq) → generate (Gemini) → bran
 `/abu docs <lib>`, `/abu search <text>`, `/abu merge`, `/abu status`, `/abu stop`
 • Never destructive: additive-only changes, no table/feature deletion, secrets never logged,
 CI files protected unless explicitly opted in.
+• Dashboard: `python jarvis/server.py` (local) or `cd jarvis && npx wrangler deploy` (Cloudflare)
 • Install the workflow: `python scripts/install_workflow.py` (or paste `deploy/abu_ali_agent.yml`
 into `.github/workflows/abu_ali_agent.yml` from the GitHub app — GitHub blocks non-`workflow` tokens there)
 • Local: `python main.py --selftest` • `python tests/test_agent_offline.py`

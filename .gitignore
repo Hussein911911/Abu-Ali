@@ -227,3 +227,9 @@ abu_ali_run.log
 .abu-ali/*.log
 .abu-ali/test-*.json
 .abu-ali/test-*.jsonl
+
+# The live workflow copy is installed by scripts/install_workflow.py or the
+# J.A.R.V.I.S. dashboard button. It is ignored here because GitHub refuses to
+# let a token without the `workflow` scope write inside .github/workflows/;
+# the tracked source of truth is deploy/abu_ali_agent.yml.
+/.github/workflows/abu_ali_agent.yml
