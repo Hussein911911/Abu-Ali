@@ -1,0 +1,172 @@
+# =============================================================================
+#  CANONICAL COPY of the Abu Ali orchestrator workflow.
+#
+#  Live location (what GitHub actually runs):
+#      .github/workflows/abu_ali_agent.yml
+#
+#  GitHub refuses to let a GitHub App without the `workflows` permission create
+#  or update files inside .github/workflows/. This copy therefore lives in
+#  `deploy/` so it can be version-controlled, and one of these installs it:
+#
+#      python scripts/install_workflow.py            # needs MY_GITHUB_TOKEN
+#
+#  or from the GitHub mobile app:  Add file → Create new file →
+#  path: .github/workflows/abu_ali_agent.yml  →  paste this content →  Commit.
+#
+#  Keep both copies identical (scripts/install_workflow.py --check verifies it).
+# =============================================================================
+name: Abu Ali — Autonomous DevOps Agent
+
+# =============================================================================
+#  Abu Ali orchestration entry point.
+#  Triggers: GitHub Issues, Issue comments, manual dispatch, cron.
+#  Everything the agent needs arrives through repository secrets (see README).
+# =============================================================================
+
+on:
+  issues:
+    types: [opened, edited, labeled, reopened]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      instruction:
+        description: "Raw instruction for Abu Ali (Arabic or English)"
+        required: false
+        type: string
+      issue_number:
+        description: "Issue number to work on (optional)"
+        required: false
+        type: string
+      dry_run:
+        description: "Plan only — do not commit anything"
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    # Every 6 hours (UTC): 00:17, 06:17, 12:17, 18:17 — off-peak minutes to dodge queue spikes
+    - cron: "17 */6 * * *"
+
+concurrency:
+  # One agent run per issue; scheduled sweeps share the "sweep" lane.
+  group: abu-ali-${{ github.event.issue.number || github.event.inputs.issue_number || 'sweep' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write        # commit branches / files
+  issues: write          # comment + label
+  pull-requests: write   # open / merge PRs
+  actions: read
+
+jobs:
+  abu-ali:
+    name: Abu Ali agent run
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      # ---- intelligence -------------------------------------------------
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      # ---- persistence --------------------------------------------------
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      # ---- source control (NO GITHUB_ prefix: GitHub forbids it for secrets) ----
+      MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+      # ---- edge ---------------------------------------------------------
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_PAGES_PROJECT: ${{ secrets.CLOUDFLARE_PAGES_PROJECT }}
+      CONTEXT7_API_KEY: ${{ secrets.CONTEXT7_API_KEY }}
+      # ---- behaviour (override here or as repository variables) ---------
+      AGENT_LANGUAGE: ${{ vars.AGENT_LANGUAGE || 'ar' }}
+      LLM_PROVIDER_ORDER: ${{ vars.LLM_PROVIDER_ORDER || 'groq,gemini' }}
+      AUTO_DEPLOY: ${{ vars.AUTO_DEPLOY || 'true' }}
+      AUTO_MERGE: ${{ vars.AUTO_MERGE || 'false' }}
+      MAX_FILES_PER_PR: ${{ vars.MAX_FILES_PER_PR || '10' }}
+      MAX_ISSUES_PER_RUN: ${{ vars.MAX_ISSUES_PER_RUN || '2' }}
+      ABU_DRY_RUN: ${{ inputs.dry_run || 'false' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.MY_GITHUB_TOKEN }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Restore agent state (outbox cache)
+        uses: actions/cache@v4
+        with:
+          path: .abu-ali
+          key: abu-ali-state-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            abu-ali-state-${{ github.ref_name }}-
+            abu-ali-state-
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify the environment (no secrets printed)
+        run: python main.py --status
+
+      - name: Run offline self-test
+        run: python main.py --selftest
+
+      - name: Run the offline integration suite (mocked GitHub/Supabase/LLM)
+        run: python tests/test_agent_offline.py
+
+      - name: Verify the Supabase schema file is up to date
+        run: python scripts/export_schema.py --check
+
+      - name: Run Abu Ali
+        id: agent
+        continue-on-error: true
+        env:
+          # Passed through the environment on purpose: never interpolate
+          # user-controlled text straight into a shell command.
+          ABU_TRIGGER_ISSUE: ${{ github.event.issue.number || github.event.inputs.issue_number }}
+          ABU_TRIGGER_INSTRUCTION: ${{ github.event.inputs.instruction }}
+        run: |
+          args=()
+          if [ -n "${ABU_TRIGGER_ISSUE:-}" ]; then args+=(--issue "$ABU_TRIGGER_ISSUE"); fi
+          if [ -n "${ABU_TRIGGER_INSTRUCTION:-}" ]; then args+=(--instruction "$ABU_TRIGGER_INSTRUCTION"); fi
+          echo "::group::Abu Ali execution (${#args[@]} argument(s))"
+          python main.py "${args[@]}"
+          code=$?
+          echo "::endgroup::"
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit $code
+
+      - name: Upload run log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abu-ali-log-${{ github.run_id }}
+          path: |
+            abu_ali_run.log
+            .abu-ali/outbox.jsonl
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Publish the run summary
+        if: always()
+        run: |
+          {
+            echo "## 🤖 Abu Ali"
+            echo ""
+            echo "- Event: \`${{ github.event_name }}\`"
+            echo "- Actor: @${{ github.actor }}"
+            echo "- Result: exit code ${{ steps.agent.outputs.exit_code || 'n/a' }}"
+            echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          } >> "$GITHUB_STEP_SUMMARY"

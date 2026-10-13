@@ -218,3 +218,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---- Abu Ali agent (runtime artifacts) --------------------------------------
+abu_ali_run.log
+.env
+.env.*
+!.env.example
+.abu-ali/*.log
+.abu-ali/test-*.json
+.abu-ali/test-*.jsonl

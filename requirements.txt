@@ -1,0 +1,37 @@
+# =============================================================================
+#  Abu Ali — Autonomous AI DevOps Architect
+#  Runtime dependencies (Python 3.11+)
+#
+#  Every SDK below is used with a graceful-degradation fallback inside main.py:
+#  if a package is missing or misbehaving, the agent automatically switches to
+#  the matching raw REST API instead of crashing. That is why the pins are
+#  ranges and not hard locks — and why a broken release cannot take the agent
+#  offline.
+# =============================================================================
+
+# --- persistence: Supabase PostgreSQL + REST Data API ----------------------
+supabase>=2.9.0,<3.0.0
+
+# --- HTTP everywhere (GitHub, Cloudflare, LLM fallbacks, MCP) --------------
+requests>=2.32.0,<3.0.0
+
+# --- intelligence: Gemini (deep context & production code generation) ------
+google-generativeai>=0.8.0,<0.9.0
+
+# --- intelligence: Groq (fast reasoning / planning / tool calling) ---------
+groq>=0.11.0,<1.0.0
+
+# --- GitHub REST/GraphQL: issues, branches, blobs, commits, PRs ------------
+PyGithub>=2.4.0,<3.0.0
+
+# --- environment handling (local runs; CI injects real secrets) ------------
+python-dotenv>=1.0.1,<2.0.0
+
+# --- optional, but strongly recommended ------------------------------------
+# The modern Google GenAI SDK. `google-generativeai` above is the classic SDK
+# required by the spec; when `google-genai` is present the agent prefers it
+# (newer models + native structured output) and falls back gracefully.
+google-genai>=1.0.0
+
+# --- optional test tooling (used by tests/ and the workflow) ---------------
+# pytest>=8.0.0
