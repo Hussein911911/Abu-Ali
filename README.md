@@ -292,7 +292,8 @@ python main.py --selftest        # 25 فحصاً بدون إنترنت
 python main.py --status          # ما الذي تم ضبطه فعلاً
 python main.py --dry-run --instruction "أضف اختبارات"
 python tests/test_agent_offline.py   # تكامل كامل بمحاكاة GitHub/Supabase/LLM
-python scripts/export_schema.py --check   # هل db/schema.sql محدّث؟
+python scripts/export_schema.py --check        # هل db/schema.sql محدّث؟
+python scripts/install_workflow.py --offline   # هل نسختا الـ Workflow متطابقتان؟
 ```
 
 للاختبار محلياً مع مفاتيح حقيقية: انسخ `.env.example` إلى `.env`.

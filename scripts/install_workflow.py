@@ -95,10 +95,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", default=os.getenv("GITHUB_REPOSITORY", ""), help="owner/name (default: $GITHUB_REPOSITORY)")
     parser.add_argument("--branch", default="", help="target branch (default: the repository default branch)")
     parser.add_argument("--check", action="store_true", help="only verify that the installed copy matches")
+    parser.add_argument("--offline", action="store_true",
+                        help="no network: verify that .github/workflows/ and deploy/ hold the same workflow")
     args = parser.parse_args(argv)
 
     body = workflow_body()
     local_b64 = base64.b64encode(body.encode("utf-8")).decode("ascii")
+
+    if args.offline:
+        installed = ROOT / TARGET_PATH
+        if not installed.exists():
+            log(f"✘ {TARGET_PATH} is missing — run: python scripts/install_workflow.py")
+            return 1
+        if installed.read_text(encoding="utf-8") != body:
+            log(f"✘ {TARGET_PATH} differs from deploy/abu_ali_agent.yml — resync them")
+            return 1
+        log(f"✔ {TARGET_PATH} matches deploy/abu_ali_agent.yml")
+        return 0
 
     repo = args.repo.strip()
     if not repo or "/" not in repo:

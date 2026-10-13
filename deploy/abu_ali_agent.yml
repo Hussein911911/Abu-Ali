@@ -86,7 +86,7 @@ jobs:
       AUTO_MERGE: ${{ vars.AUTO_MERGE || 'false' }}
       MAX_FILES_PER_PR: ${{ vars.MAX_FILES_PER_PR || '10' }}
       MAX_ISSUES_PER_RUN: ${{ vars.MAX_ISSUES_PER_RUN || '2' }}
-      ABU_DRY_RUN: ${{ inputs.dry_run || 'false' }}
+      ABU_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
 
     steps:
       - name: Checkout repository
@@ -128,6 +128,9 @@ jobs:
 
       - name: Verify the Supabase schema file is up to date
         run: python scripts/export_schema.py --check
+
+      - name: Verify the workflow copies are in sync
+        run: python scripts/install_workflow.py --offline
 
       - name: Run Abu Ali
         id: agent

@@ -233,6 +233,11 @@ def setup_logging(verbose: bool = True) -> logging.Logger:
         root.addHandler(console)
 
     try:
+        # The log may live in a sub-directory (e.g. .abu-ali/run.log) that does not
+        # exist yet on a fresh runner — create it instead of silently losing logs.
+        log_parent = Path(LOG_FILE).expanduser().parent
+        if str(log_parent) not in ("", "."):
+            log_parent.mkdir(parents=True, exist_ok=True)
         LOG_FILE_HANDLE = logging.FileHandler(LOG_FILE, mode="a", encoding="utf-8")
         LOG_FILE_HANDLE.setFormatter(logging.Formatter(fmt, datefmt=datefmt))
         LOG_FILE_HANDLE.addFilter(SecretRedactingFilter())
