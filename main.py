@@ -231,6 +231,14 @@ def setup_logging(verbose: bool = True) -> logging.Logger:
         console.setFormatter(_ColorFormatter(fmt, datefmt=datefmt))
         console.addFilter(SecretRedactingFilter())
         root.addHandler(console)
+    else:
+        # Quiet mode still surfaces failures: an error must never be invisible
+        # just because the chatty console handler is off.
+        errors_only = logging.StreamHandler(stream=sys.stderr)
+        errors_only.setLevel(logging.ERROR)
+        errors_only.setFormatter(logging.Formatter(fmt, datefmt=datefmt))
+        errors_only.addFilter(SecretRedactingFilter())
+        root.addHandler(errors_only)
 
     try:
         # The log may live in a sub-directory (e.g. .abu-ali/run.log) that does not
@@ -4065,8 +4073,9 @@ class Agent:
 
     def project_constitution(self) -> str:
         """Read the repo rulebook (ABU_ALI.md) once and cache it for the run."""
-        if self._constitution is not None:
-            return self._constitution
+        cached = getattr(self, "_constitution", None)
+        if cached is not None:
+            return cached
         text = ""
         try:
             if os.path.exists(INSTRUCTIONS_FILE):
@@ -4384,6 +4393,16 @@ class Agent:
 
 def selftest() -> int:
     """Validate the engine offline: parsing, policy, prompts, schema, tools."""
+    try:
+        return _selftest_checks()
+    except Exception as exc:  # a broken check must be reported, not swallowed
+        print("\n=== RESULT: SELF TEST CRASHED ✘ ===")
+        traceback.print_exc()
+        print(f"\n{type(exc).__name__}: {exc}\n")
+        return 1
+
+
+def _selftest_checks() -> int:
     print(f"\n=== {AGENT_NAME} v{AGENT_VERSION} — SELF TEST ===\n")
     failures: List[str] = []
 
@@ -4440,6 +4459,7 @@ def selftest() -> int:
     classifier = Agent.__new__(Agent)          # pure-helper instance: no network clients
     classifier.cfg = cfg
     classifier.log = LOG
+    classifier._constitution = None
     classifier.brain = brain
     classifier.metrics = {"tool_calls": 0}
     classifier.cloudflare = CloudflareClient(cfg)
